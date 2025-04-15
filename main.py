@@ -88,10 +88,11 @@ class NextPieceWidget(QFrame):
             painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX - 1, BLOCK_SIZE_PX - 1)
 
 class GameBoard(QFrame):
-    update_score_signal = Signal(int) # Signal to update score in main window
-    update_level_signal = Signal(int) # Signal to update level in main window
-    update_rows_signal = Signal(int)  # Signal to update rows in main window
-    game_over_signal = Signal()       # Signal when game is over
+    update_score_signal = Signal(int)
+    update_level_signal = Signal(int)
+    update_rows_signal = Signal(int)
+    game_over_signal = Signal()
+    next_piece_ready_signal = Signal(int)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -99,13 +100,14 @@ class GameBoard(QFrame):
         self.setStyleSheet("background-color: #DDDDDD; border: 1px solid black;")
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         
-        self.board_state = [[NO_BLOCK for _ in range(BOARD_WIDTH_BLOCKS)]
-                           for _ in range(BOARD_HEIGHT_BLOCKS)]
+        self.board_state = []
         self.current_piece_shape_index = -1
-        self.current_piece_coords = [] # List of QPoint for current piece blocks
-        self.current_pos = QPoint(0, 0) # Board coordinates (col, row) of piece pivot
+        self.current_piece_coords = []
+        self.current_pos = QPoint(0, 0)
+        self.next_piece_shape_index = -1
         self.is_started = False
         self.is_paused = False
+        self.show_shadow = True  # Option to toggle shadow piece (from Tcl)
         self.score = 0
         self.level = 0
         self.rows_cleared_total = 0
@@ -124,6 +126,7 @@ class GameBoard(QFrame):
                            for _ in range(BOARD_HEIGHT_BLOCKS)]
         self.current_piece_coords = []
         self.current_piece_shape_index = -1
+        self.next_piece_shape_index = random.randint(1, len(TETRIS_SHAPES))  # Pre-select first 'next'
         self.is_started = False
         self.is_paused = False
         self.score = 0
@@ -133,6 +136,7 @@ class GameBoard(QFrame):
         self.update_score_signal.emit(self.score)
         self.update_level_signal.emit(self.level)
         self.update_rows_signal.emit(self.rows_cleared_total)
+        self.next_piece_ready_signal.emit(self.next_piece_shape_index)
         self.update()
         
     def start_game(self):
@@ -140,7 +144,7 @@ class GameBoard(QFrame):
         self.reset_board()
         self.is_started = True
         self.is_paused = False
-        self.create_new_piece()
+        self.create_new_piece()  # This will use and update next_piece_shape_index
         self.setFocus()
         
     def pause_game(self):
@@ -158,8 +162,8 @@ class GameBoard(QFrame):
 
     def create_new_piece(self):
         """Selects a new random piece and places it at the top."""
-        # In Tcl: logic within 'CreatePiece'
-        self.current_piece_shape_index = random.randint(1, len(TETRIS_SHAPES))
+        # The 'next' piece becomes the 'current' piece
+        self.current_piece_shape_index = self.next_piece_shape_index
         shape_coords = TETRIS_SHAPES[self.current_piece_shape_index - 1]
         # Start position: center horizontally, slightly above visible board
         self.current_pos = QPoint(BOARD_WIDTH_BLOCKS // 2, 1)
@@ -170,6 +174,10 @@ class GameBoard(QFrame):
              coord = QPoint(self.current_pos.x() + point_offset[0],
                             self.current_pos.y() + point_offset[1])
              self.current_piece_coords.append(coord)
+             
+        # Select the 'new' next piece and signal it
+        self.next_piece_shape_index = random.randint(1, len(TETRIS_SHAPES))
+        self.next_piece_ready_signal.emit(self.next_piece_shape_index)
 
         # Check for immediate collision (Game Over condition)
         if not self.check_collision(self.current_piece_coords):
@@ -187,10 +195,10 @@ class GameBoard(QFrame):
             # Check boundaries
             if x < 0 or x >= BOARD_WIDTH_BLOCKS or y < 0 or y >= BOARD_HEIGHT_BLOCKS:
                 return False # Out of bounds
-            # Check collision with fallen pieces (board_state)
-            if self.board_state[y][x] != NO_BLOCK:
-                return False # Collision with existing block
-        return True # No collision
+            # Check board_state bounds before accessing
+            if 0 <= y < BOARD_HEIGHT_BLOCKS and self.board_state[y][x] != NO_BLOCK:
+                return False
+        return True
 
 
     def move_piece(self, dx, dy):
@@ -247,11 +255,15 @@ class GameBoard(QFrame):
         # In Tcl: 'Drop' proc
         if not self.current_piece_coords or self.is_paused:
              return
-        # Repeatedly move down until collision
-        while self.move_piece(0, 1):
-            pass
-        # cement_piece is called by the failed move_piece
-
+        # Calculate final position directly using shadow logic helper
+        shadow_coords = self._calculate_shadow_position()
+        if shadow_coords:
+            dy = shadow_coords[0].y() - self.current_piece_coords[0].y()
+            self.current_pos += QPoint(0, dy)
+            self.current_piece_coords = shadow_coords
+            self.cement_piece()
+            self.update()
+            
     def cement_piece(self):
         """Adds the current piece blocks to the board state."""
         # In Tcl: 'CementPiece' proc
@@ -266,7 +278,9 @@ class GameBoard(QFrame):
         self.clear_lines() # Check for and clear completed lines
         self.current_piece_coords = [] # Piece is now part of the board
         self.current_piece_shape_index = -1
-        self.create_new_piece() # Start the next piece
+        # Only create next piece if game hasn't ended
+        if self.is_started:
+            self.create_new_piece()
 
     def clear_lines(self):
         """Checks for and removes completed lines."""
