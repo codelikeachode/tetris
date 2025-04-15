@@ -404,9 +404,8 @@ class MainWindow(QMainWindow):
         left_panel.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
         self.title_label = QLabel(f"Tetris v?.? (PySide6)")
         self.next_piece_label = QLabel("Next Object")
-        self.next_piece_display = QFrame()
-        self.next_piece_display.setFixedSize(BLOCK_SIZE_PX * 4 + 10, BLOCK_SIZE_PX * 2 + 10)
-        self.next_piece_display.setStyleSheet("background-color: lightgrey; border: 1px solid black;")
+        self.next_piece_display = NextPieceWidget()
+        
         info_layout = QGridLayout()
         self.score_label = QLabel("Score:")
         self.score_value = QLabel("0")
@@ -422,7 +421,7 @@ class MainWindow(QMainWindow):
         info_layout.addWidget(self.rows_value, 2, 1, Qt.AlignmentFlag.AlignRight)
         self.start_pause_button = QPushButton("Start")
         self.reset_button = QPushButton("Reset")
-        self.options_button = QPushButton("Options")
+        self.options_button = QPushButton("Options")  # Still placeholder
         self.quit_button = QPushButton("Quit")
         left_layout.addWidget(self.title_label)
         left_layout.addWidget(self.next_piece_label)
@@ -453,11 +452,11 @@ class MainWindow(QMainWindow):
         self.start_pause_button.clicked.connect(self.toggle_game_state)
         self.reset_button.clicked.connect(self.reset_game)
         self.quit_button.clicked.connect(QApplication.instance().quit)
-        # Connect signals from GameBoard to update UI elements
         self.game_board.update_score_signal.connect(self.update_score_display)
         self.game_board.update_level_signal.connect(self.update_level_display)
         self.game_board.update_rows_signal.connect(self.update_rows_display)
         self.game_board.game_over_signal.connect(self.handle_game_over)
+        self.game_board.next_piece_ready_signal.connect(self.next_piece_display.set_next_piece)
 
         self.reset_game()
         
@@ -466,7 +465,6 @@ class MainWindow(QMainWindow):
         """Called by the fall_timer timeout."""
         if self.game_state == "Playing" and not self.game_board.is_paused:
              self.game_board.slide_down()
-             # Collision handling (cementing, line clear, new piece) is now inside GameBoard
 
     @Slot()
     def toggle_game_state(self):
@@ -524,40 +522,26 @@ class MainWindow(QMainWindow):
         self.rows_value.setText(str(rows))
 
     def update_timer_interval(self):
-        """Adjusts game speed based on level."""
-        # Mimic Tcl logic: maxInterval - (maxInterval/20 * level)
-        # Tcl maxInterval = 500ms
         base_interval = 500
         level_factor = base_interval / 20
         new_interval = base_interval - (level_factor * self.game_board.level)
-        # Ensure minimum interval (Tcl used 8ms, let's use 50ms for safety)
-        self.current_interval = max(50, int(new_interval))
+        self.current_interval = max(30, int(new_interval))
         if self.fall_timer.isActive():
             self.fall_timer.setInterval(self.current_interval)
 
 
     def keyPressEvent(self, event):
-        """Handles keyboard input."""
         if self.game_state != "Playing" or self.game_board.is_paused:
             event.ignore()
             return
-
         key = event.key()
         board = self.game_board
-
-        if key == Qt.Key.Key_Left:
-            board.move_piece(-1, 0)
-        elif key == Qt.Key.Key_Right:
-            board.move_piece(1, 0)
-        elif key == Qt.Key.Key_Up: # Rotate
-            board.rotate_piece()
-        elif key == Qt.Key.Key_Down: # Move down faster (slide)
-            board.slide_down()
-        elif key == Qt.Key.Key_Space: # Drop piece
-            board.drop_piece()
-        # Add other keys if needed (e.g., Pause key?)
-        else:
-            super().keyPressEvent(event) # Pass unhandled keys
+        if key == Qt.Key.Key_Left: board.move_piece(-1, 0)
+        elif key == Qt.Key.Key_Right: board.move_piece(1, 0)
+        elif key == Qt.Key.Key_Up: board.rotate_piece()
+        elif key == Qt.Key.Key_Down: board.slide_down()
+        elif key == Qt.Key.Key_Space: board.drop_piece()
+        else: super().keyPressEvent(event)
 
 
 if __name__ == "__main__":
