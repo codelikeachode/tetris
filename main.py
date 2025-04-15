@@ -33,14 +33,14 @@ TETRIS_SHAPES = (  # Defines the 7 Tetris pieces (coords relative to a pivot)
     ((0, 0), (1, 0), (0, 1), (-1, 1)),  # S-shape - Index 6
     ((0, 0), (-1, 0), (0, 1), (1, 1)),  # Z-shape - Index 7
 )
-TETRIS_COLORS = (  # Colors for each shape (RGBA) - Indices 0-6 match shapes 1-7
-    QColor(255, 255, 0, 200),  # Yellow (O)
-    QColor(0, 255, 255, 200),  # Cyan (I)
-    QColor(128, 0, 128, 200),  # Purple (T)
-    QColor(255, 165, 0, 200),  # Orange (L)
-    QColor(0, 0, 255, 200),  # Blue (J)
-    QColor(0, 255, 0, 200),  # Green (S)
-    QColor(255, 0, 0, 200),  # Red (Z)
+TETRIS_COLORS = ( # Neon-style Colors (fully opaque - alpha 255)
+    QColor(255, 255, 51),   # Bright Yellow (O)
+    QColor(51, 255, 255),   # Bright Cyan (I)
+    QColor(255, 51, 255),   # Bright Magenta (T)
+    QColor(255, 153, 51),   # Bright Orange (L)
+    QColor(51, 102, 255),   # Bright Blue (J)
+    QColor(102, 255, 51),   # Bright Green (S)
+    QColor(255, 51, 51)     # Bright Red (Z)
 )
 NO_BLOCK = 0
 NEXT_PIECE_AREA_WIDTH_BLOCKS = 4  # How many blocks wide the next piece area is
@@ -117,7 +117,8 @@ class GameBoard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(BOARD_WIDTH_PX, BOARD_HEIGHT_PX)
-        self.setStyleSheet("background-color: #DDDDDD; border: 1px solid black;")
+        # self.setStyleSheet("background-color: #DDDDDD; border: 1px solid black;") # Old light grey
+        self.setStyleSheet("background-color: #1C1C1C; border: 1px solid #444444;") # New dark grey background, slightly lighter border
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self.board_state = []  # Initialized in reset_board
