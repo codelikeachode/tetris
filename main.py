@@ -2,17 +2,17 @@ import sys
 import random
 from PySide6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QWidget,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
     QLabel,
+    QMainWindow,
     QPushButton,
     QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QFrame,
+    QWidget,
 )
-from PySide6.QtCore import Qt, QTimer, Slot, QPoint, Signal
-from PySide6.QtGui import QPainter, QColor, QBrush, QPen
+from PySide6.QtCore import QPoint, Qt, QTimer, Slot, Signal
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 
 # Constants (derived from Tcl script's setup)
 BOARD_WIDTH_BLOCKS = 10
