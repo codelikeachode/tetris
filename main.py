@@ -34,6 +34,58 @@ TETRIS_COLORS = ( # Colors for each shape (RGBA)
 
 # Sentinel value for empty cells in board_state
 NO_BLOCK = 0
+NEXT_PIECE_AREA_WIDTH_BLOCKS = 4
+NEXT_PIECE_AREA_HEIGHT_BLOCKS = 4
+
+
+class NextPieceWidget(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        width = NEXT_PIECE_AREA_WIDTH_BLOCKS * BLOCK_SIZE_PX + 10
+        height = NEXT_PIECE_AREA_HEIGHT_BLOCKS * BLOCK_SIZE_PX + 10
+        self.setFixedSize(width, height)
+        self.setStyleSheet("background-color: lightgrey; border: 1px solid black;")
+        self.next_piece_index = -1
+        
+    @Slot(int)
+    def set_next_piece(self, shape_index):
+        if 1 <= shape_index <= len(TETRIS_SHAPES):
+            self.next_piece_index = shape_index
+        else:
+            self.next_piece_index = -1
+        self.update()
+        
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self.next_piece_index == -1:
+            return
+        
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        shape_coords_rel = TETRIS_SHAPES[self.next_piece_index - 1]
+        color = TETRIS_COLORS[self.next_piece_index - 1]
+        
+        min_x = min(p[0] for p in shape_coords_rel)
+        max_x = max(p[0] for p in shape_coords_rel)
+        min_y = min(p[1] for p in shape_coords_rel)
+        max_y = max(p[1] for p in shape_coords_rel)
+        piece_width_blocks = max_x - min_x + 1
+        piece_height_blocks = max_y - min_y + 1
+        
+        start_x_px = (self.width() - piece_width_blocks * BLOCK_SIZE_PX) // 2
+        start_y_px = (self.height() - piece_height_blocks * BLOCK_SIZE_PX) // 2
+        
+        offset_x_px = -min_x * BLOCK_SIZE_PX
+        offset_y_px = -min_y * BLOCK_SIZE_PX
+        
+        painter.setPen(color.darker(120))
+        painter.setBrush(QBrush(color))
+        
+        for point_offset in shape_coords_rel:
+            rect_x = start_x_px + offset_x_px + point_offset[0] * BLOCK_SIZE_PX
+            rect_y = start_y_px + offset_y_px + point_offset[1] * BLOCK_SIZE_PX
+            painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX - 1, BLOCK_SIZE_PX - 1)
 
 class GameBoard(QFrame):
     update_score_signal = Signal(int) # Signal to update score in main window
