@@ -322,12 +322,26 @@ class GameBoard(QFrame):
         self.update_rows_signal.emit(self.rows_cleared_total)
         self.update()
         
+    def _calculate_shadow_position(self):
+        if not self.current_piece_coords:
+            return []
+        
+        shadow_coords = list(self.current_piece_coords)
+        dy = 0
+        while True:
+            dy += 1
+            potential_coords = [QPoint(p.x(), p.y() + dy) for p in self.current_piece_coords]
+            if not self.check_collision(potential_coords):
+                dy -= 1
+                break
+        return [QPoint(p.x(), p.y(), + dy) for p in self.current_piece_coords]
+        
     def paintEvent(self, event):
         """Draws the board grid, fallen pieces, and current piece."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # --- Draw Fallen Pieces (Structure) ---
+        # Draw fallen pieces
         for y in range(BOARD_HEIGHT_BLOCKS):
             for x in range(BOARD_WIDTH_BLOCKS):
                 block_index = self.board_state[y][x]
@@ -339,17 +353,32 @@ class GameBoard(QFrame):
                     painter.fillRect(rect_x, rect_y, BLOCK_SIZE_PX, BLOCK_SIZE_PX, color)
                     painter.setPen(color.darker(120)) # Slightly darker border
                     painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX -1, BLOCK_SIZE_PX -1)
+                    
+        # Draw shadow piece (if enabled and piece exists)
+        if self.show_shadow and self.current_piece_coords:
+            shadow_coords = self._calculate_shadow_position()
+            if shadow_coords:
+                color = self.get_color_for_index(self.current_piece_shape_index)
+                shadow_pen = QPen(color.darker(110), 1)
+                shadow_brush = QBrush(Qt.BrushStyle.NoBrush)
+                painter.setPen(shadow_pen)
+                painter.setBrush(shadow_brush)
+                for point in shadow_coords:
+                    rect_x = point.x() * BLOCK_SIZE_PX
+                    rect_y = point.y() * BLOCK_SIZE_PX
+                    painter.drawRect(rect_x + 1, rect_y + 1, BLOCK_SIZE_PX - 2, BLOCK_SIZE_PX - 2)
 
 
-        # --- Draw Current Piece ---
+        # Draw Current Piece  (on top of shadow)
         if self.current_piece_coords:
             color = self.get_color_for_index(self.current_piece_shape_index)
+            painter.setBrush(QBrush(color))
+            painter.setPen(color.darker(120))
             for point in self.current_piece_coords:
                 # Draw rectangle for the block
                 rect_x = point.x() * BLOCK_SIZE_PX
                 rect_y = point.y() * BLOCK_SIZE_PX
                 painter.fillRect(rect_x, rect_y, BLOCK_SIZE_PX, BLOCK_SIZE_PX, color)
-                painter.setPen(color.darker(120)) # Slightly darker border
                 painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX -1, BLOCK_SIZE_PX -1)
         
         
