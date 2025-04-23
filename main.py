@@ -276,11 +276,13 @@ class GameBoard(QFrame):
             ):
                 self.board_state[point.y()][point.x()] = self.current_piece_shape_index
         self.clear_lines()
+        
         self.current_piece_coords = []
         self.current_piece_shape_index = -1
         # Only create next piece if game hasn't ended
         if self.is_started:
             self.create_new_piece()
+        # No need for another self.update() here, create_new_piece calls it.
 
     def clear_lines(self):
         lines_to_clear = []
@@ -298,15 +300,25 @@ class GameBoard(QFrame):
         new_level = self.rows_cleared_total // 10
         if new_level > self.level:
             self.level = new_level
-        lines_to_clear.sort(reverse=True)
-        for line_y in lines_to_clear:
-            for y in range(line_y, 0, -1):
-                self.board_state[y] = list(self.board_state[y - 1])
-            self.board_state[0] = [NO_BLOCK for _ in range(BOARD_WIDTH_BLOCKS)]
+            
+        # Rebuild board state instead of shifting
+        new_board_state = [[NO_BLOCK for _ in range(BOARD_WIDTH_BLOCKS)]
+                           for _ in range(BOARD_HEIGHT_BLOCKS)]
+        
+        new_row_index = BOARD_HEIGHT_BLOCKS - 1
+        for old_row_index in range(BOARD_HEIGHT_BLOCKS - 1, -1, -1):
+            if old_row_index not in lines_to_clear:
+                if new_row_index >= 0:
+                    new_board_state[new_row_index] = list(self.board_state[old_row_index])
+                    new_row_index -= 1
+                    
+        self.board_state = new_board_state
+        
         self.update_score_signal.emit(self.score)
         self.update_level_signal.emit(self.level)
         self.update_rows_signal.emit(self.rows_cleared_total)
-        self.update()
+        # self.update()
+        self.repaint()  # Hopefully making the widget redraw iself immediately and synchronously before the clear_lines function returns
 
     def _calculate_shadow_position(self):
         """Finds the lowest valid position for the current piece."""
