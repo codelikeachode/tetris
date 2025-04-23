@@ -5,6 +5,7 @@ import sys
 import random
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -385,6 +386,65 @@ class GameBoard(QFrame):
                 rect_y = point.y() * BLOCK_SIZE_PX
                 painter.fillRect(rect_x, rect_y, BLOCK_SIZE_PX, BLOCK_SIZE_PX, color)
                 painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX - 1, BLOCK_SIZE_PX - 1)
+                
+                
+class OptionsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Options")
+        self.setModal(True)
+        
+        layout = QVBoxLayout(self)
+        
+        self.stats_button = QPushButton("Stats")
+        self.keys_button = QPushButton("Keys Bindings")
+        self.multiplayer_button = QPushButton("Multi Player")
+        self.gametypes_button = QPushButton("Game Types")
+        self.about_button = QPushButton("About")
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        self.dismiss_button = QPushButton("Dismiss")
+        
+        layout.addWidget(self.stats_button)
+        layout.addWidget(self.keys_button)
+        layout.addWidget(self.multiplayer_button)
+        layout.addWidget(self.gametypes_button)
+        layout.addWidget(self.about_button)
+        layout.addWidget(separator)
+        layout.addWidget(self.dismiss_button)
+        
+        self.stats_button.clicked.connect(self.show_stats)
+        self.keys_button.clicked.connect(self.show_keys)
+        self.multiplayer_button.clicked.connect(self.show_multiplayer)
+        self.gametypes_button.clicked.connect(self.show_gametypes)
+        self.about_button.clicked.connect(self.show_about)
+        self.dismiss_button.clicked.connect(self.accept)
+        
+        self.multiplayer_button.setEnabled(False)
+        self.gametypes_button.setEnabled(False)
+        
+    # Placeholder Slots
+    # These will open other specific dialogs later
+    @Slot()
+    def show_stats(self):
+        print("Stats button clicked - not implemented yet")
+        
+    @Slot()
+    def show_keys(self):
+        print("Keys button clicked - not implemented yet")
+
+    @Slot()
+    def show_multiplayer(self):
+        print("Multiplayer button clicked - not implemented yet")
+
+    @Slot()
+    def show_gametypes(self):
+        print("Game Types button clicked - not implemented yet")
+    
+    @Slot()
+    def show_about(self):
+        print("About button clicked - not implemented yet")
 
 
 # MainWindow
@@ -452,6 +512,7 @@ class MainWindow(QMainWindow):
         self.start_pause_button.clicked.connect(self.toggle_game_state)
         self.reset_button.clicked.connect(self.reset_game)
         self.quit_button.clicked.connect(QApplication.instance().quit)
+        self.options_button.clicked.connect(self.show_options_dialog)
         self.game_board.update_score_signal.connect(self.update_score_display)
         self.game_board.update_level_signal.connect(self.update_level_display)
         self.game_board.update_rows_signal.connect(self.update_rows_display)
@@ -460,9 +521,16 @@ class MainWindow(QMainWindow):
         self.game_board.next_piece_ready_signal.connect(
             self.next_piece_display.set_next_piece
         )
+        
+        self.options_dialog = None
 
         self.reset_game()
 
+    @Slot()
+    def show_options_dialog(self):
+        dialog = OptionsDialog(self)
+        dialog.exec()
+        
     @Slot()
     def game_step(self):
         if self.game_state == "Playing" and not self.game_board.is_paused:
