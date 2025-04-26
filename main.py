@@ -133,6 +133,7 @@ class GameBoard(QFrame):
         self.score = 0
         self.level = 0
         self.rows_cleared_total = 0
+        self.piece_stats = {}
 
         self.reset_board()
 
@@ -151,6 +152,7 @@ class GameBoard(QFrame):
         self.next_piece_shape_index = random.randint(
             1, len(TETRIS_SHAPES)
         )  # Pre-select first 'next'
+        self.piece_stats = {i: 0 for i in range(1, len(TETRIS_SHAPES) + 1)}
         self.is_started = False
         self.is_paused = False
         self.score = 0
@@ -187,6 +189,8 @@ class GameBoard(QFrame):
     def create_new_piece(self):
         # The 'next' piece becomes the 'current' piece
         self.current_piece_shape_index = self.next_piece_shape_index
+        if self.current_piece_shape_index != -1:
+            self.piece_stats[self.current_piece_shape_index] += 1
         shape_coords = TETRIS_SHAPES[self.current_piece_shape_index - 1]
         self.current_pos = QPoint(BOARD_WIDTH_BLOCKS // 2, 1)
         self.current_piece_coords = []
@@ -207,6 +211,9 @@ class GameBoard(QFrame):
             self.current_piece_coords = []
             self.game_over_signal.emit()
         self.update()
+        
+    def get_stats(self):
+        return self.piece_stats
 
     def check_collision(self, piece_coords):
         for point in piece_coords:
@@ -389,8 +396,9 @@ class GameBoard(QFrame):
                 
                 
 class OptionsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, game_board_ref, parent=None):
         super().__init__(parent)
+        self.game_board = game_board_ref
         self.setWindowTitle("Options")
         self.setModal(True)
         
@@ -428,7 +436,12 @@ class OptionsDialog(QDialog):
     # These will open other specific dialogs later
     @Slot()
     def show_stats(self):
-        print("Stats button clicked - not implemented yet")
+        if self.game_board:
+            current_stats = self.game_board.get_stats()
+            stats_dlg = StatsDialog(current_stats, self)
+            stats_dlg.exec()
+        else:
+            print("Error: GameBoard reference not found in OptionsDialog.")
         
     @Slot()
     def show_keys(self):
@@ -445,6 +458,80 @@ class OptionsDialog(QDialog):
     @Slot()
     def show_about(self):
         print("About button clicked - not implemented yet")
+        
+        
+class PieceDisplayWidget(QWidget):
+    def __init__(self, shape_index, parent=None):
+        super().__init__(parent)
+        self.shape_index = shape_index
+        self.block_size = BLOCK_SIZE_PX * 0.6  # Smaller blocks for stats display
+        width = NEXT_PIECE_AREA_WIDTH_BLOCKS * self.block_size
+        height = NEXT_PIECE_AREA_HEIGHT_BLOCKS * self.block_size
+        self.setFixedSize(int(width), int(height))
+        
+    def paintEvent(self, event):
+        if not (1 <= self.shape_index <= len(TETRIS_SHAPES)):
+            return
+        
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        shape_coords_rel = TETRIS_SHAPES[self.shape_index - 1]
+        color = TETRIS_COLORS[self.shape_index - 1]
+        
+        min_x = min(p[0] for p in shape_coords_rel)
+        max_x = max(p[0] for p in shape_coords_rel)
+        min_y = min(p[1] for p in shape_coords_rel)
+        max_y = max(p[1] for p in shape_coords_rel)
+        piece_width_blocks = max_x - min_x + 1
+        piece_height_blocks = max_y - min_y + 1
+        
+        start_x_px = (self.width() - piece_width_blocks * self.block_size) / 2
+        start_y_px = (self.height() - piece_height_blocks * self.block_size) / 2
+        offset_x_px = -min_x * self.block_size
+        offset_y_px = -min_y * self.block_size
+        
+        painter.setPen(color.darker(120))
+        painter.setBrush(QBrush(color))
+        
+        for point_offset in shape_coords_rel:
+            rect_x = start_x_px + offset_x_px + point_offset[0] * self.block_size
+            rect_y = start_y_px + offset_y_px + point_offset[1] * self.block_size
+            painter.drawRect(int(rect_x), int(rect_y), int(self.block_size - 1), int(self.block_size - 1))
+            
+            
+
+class StatsDialog(QDialog):
+    def __init__(self, current_stats, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Stats")
+        self.setModal(True)
+        
+        self.stats = current_stats
+        
+        main_layout = QVBoxLayout(self)
+        title_label = QLabel("<h2>Piece Stats (Current Game)</h2>")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
+        
+        grid_layout = QGridLayout()
+        grid_layout.setColumnStretch(0, 0)
+        grid_layout.setColumnStretch(1, 1)
+        
+        for i in range(1, len(TETRIS_SHAPES) + 1):
+            piece_widget = PieceDisplayWidget(i)
+            count = self.stats.get(i, 0)
+            count_label = QLabel(f"{count}")
+            count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            
+            grid_layout.addWidget(piece_widget, i - 1, 0, Qt.AlignmentFlag.AlignCenter)
+            grid_layout.addWidget(count_label, i - 1, 1)
+            
+        main_layout.addLayout(grid_layout)
+        
+        self.dismiss_button = QPushButton("Dismiss")
+        self.dismiss_button.clicked.connect(self.accept)
+        main_layout.addWidget(self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
 
 # MainWindow
@@ -528,7 +615,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def show_options_dialog(self):
-        dialog = OptionsDialog(self)
+        dialog = OptionsDialog(self.game_board, self)
         dialog.exec()
         
     @Slot()
