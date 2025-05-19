@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-# Add encoding declaration for potential special characters in comments/strings
-
 import sys
 import random
 from PySide6.QtWidgets import (
@@ -20,7 +17,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QPoint, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QBrush, QColor, QKeySequence, QPainter, QPen
 
-# --- Constants ---
 BOARD_WIDTH_BLOCKS = 10
 BOARD_HEIGHT_BLOCKS = 22
 BLOCK_SIZE_PX = 20
@@ -49,13 +45,11 @@ NEXT_PIECE_AREA_WIDTH_BLOCKS = 4  # How many blocks wide the next piece area is
 NEXT_PIECE_AREA_HEIGHT_BLOCKS = 4  # How many blocks high
 
 
-# --- Next Piece Widget ---
 class NextPieceWidget(QFrame):
     """Widget to display the upcoming Tetris piece."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Calculate size based on blocks it needs to contain + padding
         width = NEXT_PIECE_AREA_WIDTH_BLOCKS * BLOCK_SIZE_PX + 10
         height = NEXT_PIECE_AREA_HEIGHT_BLOCKS * BLOCK_SIZE_PX + 10
         self.setFixedSize(width, height)
@@ -69,13 +63,13 @@ class NextPieceWidget(QFrame):
             self.next_piece_index = shape_index
         else:
             self.next_piece_index = -1
-        self.update()  # Trigger paintEvent
+        self.update()
 
     def paintEvent(self, event):
         """Draws the specified next piece, centered."""
-        super().paintEvent(event)  # Draw frame background/border
+        super().paintEvent(event)
         if self.next_piece_index == -1:
-            return  # Nothing to draw
+            return
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -83,7 +77,6 @@ class NextPieceWidget(QFrame):
         shape_coords_rel = TETRIS_SHAPES[self.next_piece_index - 1]
         color = TETRIS_COLORS[self.next_piece_index - 1]
 
-        # Find bounds of the piece to center it
         min_x = min(p[0] for p in shape_coords_rel)
         max_x = max(p[0] for p in shape_coords_rel)
         min_y = min(p[1] for p in shape_coords_rel)
@@ -91,11 +84,9 @@ class NextPieceWidget(QFrame):
         piece_width_blocks = max_x - min_x + 1
         piece_height_blocks = max_y - min_y + 1
 
-        # Calculate top-left position for drawing to center the piece
         start_x_px = (self.width() - piece_width_blocks * BLOCK_SIZE_PX) // 2
         start_y_px = (self.height() - piece_height_blocks * BLOCK_SIZE_PX) // 2
 
-        # Adjust for the piece's internal origin (relative coords)
         offset_x_px = -min_x * BLOCK_SIZE_PX
         offset_y_px = -min_y * BLOCK_SIZE_PX
 
@@ -108,13 +99,12 @@ class NextPieceWidget(QFrame):
             painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX - 1, BLOCK_SIZE_PX - 1)
 
 
-# Game Board Widget
 class GameBoard(QFrame):
     update_score_signal = Signal(int)
     update_level_signal = Signal(int)
     update_rows_signal = Signal(int)
     game_over_signal = Signal()
-    next_piece_ready_signal = Signal(int)  # Signal for the next piece index
+    next_piece_ready_signal = Signal(int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -123,11 +113,11 @@ class GameBoard(QFrame):
         self.setStyleSheet("background-color: #1C1C1C; border: 1px solid #444444;") # New dark grey background, slightly lighter border
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-        self.board_state = []  # Initialized in reset_board
+        self.board_state = []
         self.current_piece_shape_index = -1
         self.current_piece_coords = []
         self.current_pos = QPoint(0, 0)
-        self.next_piece_shape_index = -1  # Store the index of the next piece
+        self.next_piece_shape_index = -1
         self.is_started = False
         self.is_paused = False
         self.show_shadow = True  # Option to toggle shadow piece (from Tcl)
@@ -152,7 +142,7 @@ class GameBoard(QFrame):
         self.current_piece_shape_index = -1
         self.next_piece_shape_index = random.randint(
             1, len(TETRIS_SHAPES)
-        )  # Pre-select first 'next'
+        )
         self.piece_stats = {i: 0 for i in range(1, len(TETRIS_SHAPES) + 1)}
         self.is_started = False
         self.is_paused = False
@@ -164,14 +154,14 @@ class GameBoard(QFrame):
         self.update_rows_signal.emit(self.rows_cleared_total)
         self.next_piece_ready_signal.emit(
             self.next_piece_shape_index
-        )  # Show initial next piece
+        )
         self.update()
 
     def start_game(self):
         self.reset_board()
         self.is_started = True
         self.is_paused = False
-        self.create_new_piece()  # This will use & update next_piece_shape_index
+        self.create_new_piece()
         self.setFocus()
 
     def pause_game(self):
@@ -188,7 +178,6 @@ class GameBoard(QFrame):
         self.update()
 
     def create_new_piece(self):
-        # The 'next' piece becomes the 'current' piece
         self.current_piece_shape_index = self.next_piece_shape_index
         if self.current_piece_shape_index != -1:
             self.piece_stats[self.current_piece_shape_index] += 1
@@ -202,11 +191,9 @@ class GameBoard(QFrame):
             )
             self.current_piece_coords.append(coord)
 
-        # Select the *new* next piece and signal it
         self.next_piece_shape_index = random.randint(1, len(TETRIS_SHAPES))
         self.next_piece_ready_signal.emit(self.next_piece_shape_index)
 
-        # Check for immediate collision (Game Over condition)
         if not self.check_collision(self.current_piece_coords):
             self.is_started = False
             self.current_piece_coords = []
@@ -222,7 +209,6 @@ class GameBoard(QFrame):
             y = point.y()
             if x < 0 or x >= BOARD_WIDTH_BLOCKS or y < 0 or y >= BOARD_HEIGHT_BLOCKS:
                 return False
-            # Check board_state bounds before accessing
             if 0 <= y < BOARD_HEIGHT_BLOCKS and self.board_state[y][x] != NO_BLOCK:
                 return False
         return True
@@ -242,7 +228,7 @@ class GameBoard(QFrame):
     def rotate_piece(self):
         if not self.current_piece_coords or self.is_paused:
             return
-        if self.current_piece_shape_index == 1:  # Square
+        if self.current_piece_shape_index == 1:
             return
         pivot = self.current_pos
         new_coords = []
@@ -288,7 +274,7 @@ class GameBoard(QFrame):
         
         self.current_piece_coords = []
         self.current_piece_shape_index = -1
-        # Only create next piece if game hasn't ended
+
         if self.is_started:
             self.create_new_piece()
         # No need for another self.update() here, create_new_piece calls it.
