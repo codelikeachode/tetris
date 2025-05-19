@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QVBoxLayout,
@@ -17,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from PySide6.QtCore import QPoint, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QBrush, QColor, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QKeySequence, QPainter, QPen
 
 # --- Constants ---
 BOARD_WIDTH_BLOCKS = 10
@@ -396,9 +397,9 @@ class GameBoard(QFrame):
                 
                 
 class OptionsDialog(QDialog):
-    def __init__(self, game_board_ref, parent=None):
+    def __init__(self, main_window_ref, parent=None):
         super().__init__(parent)
-        self.game_board = game_board_ref
+        self.main_window = main_window_ref
         self.setWindowTitle("Options")
         self.setModal(True)
         
@@ -436,16 +437,20 @@ class OptionsDialog(QDialog):
     # These will open other specific dialogs later
     @Slot()
     def show_stats(self):
-        if self.game_board:
-            current_stats = self.game_board.get_stats()
+        if self.main_window and self.main_window.game_board:
+            current_stats = self.main_window.game_board.get_stats()
             stats_dlg = StatsDialog(current_stats, self)
             stats_dlg.exec()
         else:
-            print("Error: GameBoard reference not found in OptionsDialog.")
+            print("Error: Could not access GameBoard from OptionsDialog.")
         
     @Slot()
     def show_keys(self):
-        print("Keys button clicked - not implemented yet")
+        if self.main_window:
+            keys_dlg = KeysDialog(self.main_window.key_bindings, self)
+            keys_dlg.exec()
+        else:
+            print("Error: MainWindow reference not found in OptionsDialog.")
 
     @Slot()
     def show_multiplayer(self):
@@ -532,28 +537,84 @@ class StatsDialog(QDialog):
         self.dismiss_button = QPushButton("Dismiss")
         self.dismiss_button.clicked.connect(self.accept)
         main_layout.addWidget(self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        
+
+class KeysDialog(QDialog):
+    def __init__(self, bindings, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Key Bindings")
+        self.setModal(True)
+        self.key_bindings = bindings
+        
+        main_layout = QVBoxLayout(self)
+        title_label = QLabel("<h2>Key Bindings</h2>")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
+        
+        grid_layout = QGridLayout()
+        grid_layout.setColumnStretch(0, 1)
+        grid_layout.setColumnStretch(1, 1)
+        
+        row = 0
+        for action, qt_key_code in self.key_bindings.items():
+            action_label = QLabel(f"{action}:")
+            action_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            
+            key_sequence = QKeySequence(qt_key_code)
+            key_str = key_sequence.toString(QKeySequence.SequenceFormat.NativeText)
+            # Optional: Handle cases where NativeText might still be empty for some obscure keys
+            if not key_str:
+                 # Fallback to portable text or just the key code if needed
+                 key_str = key_sequence.toString(QKeySequence.SequenceFormat.PortableText)
+                 if not key_str:
+                     key_str = f"Code: {qt_key_code}" # Absolute fallback
+
+            key_display = QLineEdit(key_str) # Display the key string
+            key_display.setReadOnly(True)
+            key_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # TODO: Add logic here later to capture new key presses for this entry
+
+            grid_layout.addWidget(action_label, row, 0)
+            grid_layout.addWidget(key_display, row, 1)
+            row += 1
+
+        main_layout.addLayout(grid_layout)
 
 
-# MainWindow
+        self.dismiss_button = QPushButton("Dismiss")
+        self.dismiss_button.clicked.connect(self.accept)
+        main_layout.addWidget(self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter)
+
+
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"PySide6 Tetris (from Tcl)")
         self.game_state = "Init"
         self.current_interval = 500
-        # Timers
+        
+        self.key_bindings = {
+            "Left": Qt.Key.Key_Left,
+            "Right": Qt.Key.Key_Right,
+            "Rotate Left": Qt.Key.Key_Up,
+            "Rotate Right": Qt.Key.Key_Down,
+            "Drop": Qt.Key.Key_Space,
+            "Slide": Qt.Key.Key_Return,
+            "Start/Pause": Qt.Key.Key_S,
+            "Reset": Qt.Key.Key_R,
+            "Options": Qt.Key.Key_O
+        }
         self.fall_timer = QTimer(self)
         self.fall_timer.timeout.connect(self.game_step)
-        # Central Widget and Layouts
         central_widget = QWidget()
         main_layout = QHBoxLayout(central_widget)
-        # Left Panel
         left_panel = QFrame()
         left_layout = QVBoxLayout(left_panel)
         left_panel.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
         self.title_label = QLabel(f"Tetris v?.? (PySide6)")
         self.next_piece_label = QLabel("Next Object")
-        # Use the new NextPieceWidget
         self.next_piece_display = NextPieceWidget()
         info_layout = QGridLayout()
         self.score_label = QLabel("Score:")
@@ -612,10 +673,38 @@ class MainWindow(QMainWindow):
         self.options_dialog = None
 
         self.reset_game()
+        
+    def keyPressEvent(self, event):
+        if self.game_state != "Playing" or self.game_board.is_paused:
+            if event.key() == self.key_bindings.get("Options"):
+                self.show_options_dialog()
+            else:
+                event.ignore()
+            return
+        
+        key = event.key()
+        board = self.game_board
+        
+        if key == self.key_bindings.get("Left"):
+            board.move_piece(-1, 0)
+        elif key == self.key_bindings.get("Right"):
+            board.move_piece(1, 0)
+        elif key == self.key_bindings.get("Rotate Left"):
+            board.rotate_piece()
+        elif key == self.key_bindings.get("Slide"):
+            board.slide_down()
+        elif key == self.key_bindings.get("Drop"):
+            board.drop_piece()
+        elif key == self.key_bindings.get("Start/Pause"):
+            self.toggle_game_state()
+        elif key == self.key_bindings.get("Reset"):
+            self.reset_game()
+        else:
+            super().keyPressEvent(event)
 
     @Slot()
     def show_options_dialog(self):
-        dialog = OptionsDialog(self.game_board, self)
+        dialog = OptionsDialog(self, self)
         dialog.exec()
         
     @Slot()
