@@ -31,14 +31,14 @@ TETRIS_SHAPES = (  # Defines the 7 Tetris pieces (coords relative to a pivot)
     ((0, 0), (1, 0), (0, 1), (-1, 1)),  # S-shape - Index 6
     ((0, 0), (-1, 0), (0, 1), (1, 1)),  # Z-shape - Index 7
 )
-TETRIS_COLORS = ( # Neon-style Colors (fully opaque - alpha 255)
-    QColor(255, 255, 51),   # Bright Yellow (O)
-    QColor(51, 255, 255),   # Bright Cyan (I)
-    QColor(255, 51, 255),   # Bright Magenta (T)
-    QColor(255, 153, 51),   # Bright Orange (L)
-    QColor(51, 102, 255),   # Bright Blue (J)
-    QColor(102, 255, 51),   # Bright Green (S)
-    QColor(255, 51, 51)     # Bright Red (Z)
+TETRIS_COLORS = (  # Neon-style Colors (fully opaque - alpha 255)
+    QColor(255, 255, 51),  # Bright Yellow (O)
+    QColor(51, 255, 255),  # Bright Cyan (I)
+    QColor(255, 51, 255),  # Bright Magenta (T)
+    QColor(255, 153, 51),  # Bright Orange (L)
+    QColor(51, 102, 255),  # Bright Blue (J)
+    QColor(102, 255, 51),  # Bright Green (S)
+    QColor(255, 51, 51),  # Bright Red (Z)
 )
 NO_BLOCK = 0
 NEXT_PIECE_AREA_WIDTH_BLOCKS = 4  # How many blocks wide the next piece area is
@@ -110,7 +110,9 @@ class GameBoard(QFrame):
         super().__init__(parent)
         self.setFixedSize(BOARD_WIDTH_PX, BOARD_HEIGHT_PX)
         # self.setStyleSheet("background-color: #DDDDDD; border: 1px solid black;") # Old light grey
-        self.setStyleSheet("background-color: #1C1C1C; border: 1px solid #444444;") # New dark grey background, slightly lighter border
+        self.setStyleSheet(
+            "background-color: #1C1C1C; border: 1px solid #444444;"
+        )  # New dark grey background, slightly lighter border
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         self.board_state = []
@@ -140,9 +142,7 @@ class GameBoard(QFrame):
         ]
         self.current_piece_coords = []
         self.current_piece_shape_index = -1
-        self.next_piece_shape_index = random.randint(
-            1, len(TETRIS_SHAPES)
-        )
+        self.next_piece_shape_index = random.randint(1, len(TETRIS_SHAPES))
         self.piece_stats = {i: 0 for i in range(1, len(TETRIS_SHAPES) + 1)}
         self.is_started = False
         self.is_paused = False
@@ -152,9 +152,7 @@ class GameBoard(QFrame):
         self.update_score_signal.emit(self.score)
         self.update_level_signal.emit(self.level)
         self.update_rows_signal.emit(self.rows_cleared_total)
-        self.next_piece_ready_signal.emit(
-            self.next_piece_shape_index
-        )
+        self.next_piece_ready_signal.emit(self.next_piece_shape_index)
         self.update()
 
     def start_game(self):
@@ -199,7 +197,7 @@ class GameBoard(QFrame):
             self.current_piece_coords = []
             self.game_over_signal.emit()
         self.update()
-        
+
     def get_stats(self):
         return self.piece_stats
 
@@ -271,7 +269,7 @@ class GameBoard(QFrame):
             ):
                 self.board_state[point.y()][point.x()] = self.current_piece_shape_index
         self.clear_lines()
-        
+
         self.current_piece_coords = []
         self.current_piece_shape_index = -1
 
@@ -295,20 +293,24 @@ class GameBoard(QFrame):
         new_level = self.rows_cleared_total // 10
         if new_level > self.level:
             self.level = new_level
-            
+
         # Rebuild board state instead of shifting
-        new_board_state = [[NO_BLOCK for _ in range(BOARD_WIDTH_BLOCKS)]
-                           for _ in range(BOARD_HEIGHT_BLOCKS)]
-        
+        new_board_state = [
+            [NO_BLOCK for _ in range(BOARD_WIDTH_BLOCKS)]
+            for _ in range(BOARD_HEIGHT_BLOCKS)
+        ]
+
         new_row_index = BOARD_HEIGHT_BLOCKS - 1
         for old_row_index in range(BOARD_HEIGHT_BLOCKS - 1, -1, -1):
             if old_row_index not in lines_to_clear:
                 if new_row_index >= 0:
-                    new_board_state[new_row_index] = list(self.board_state[old_row_index])
+                    new_board_state[new_row_index] = list(
+                        self.board_state[old_row_index]
+                    )
                     new_row_index -= 1
-                    
+
         self.board_state = new_board_state
-        
+
         self.update_score_signal.emit(self.score)
         self.update_level_signal.emit(self.level)
         self.update_rows_signal.emit(self.rows_cleared_total)
@@ -380,17 +382,17 @@ class GameBoard(QFrame):
                 rect_y = point.y() * BLOCK_SIZE_PX
                 painter.fillRect(rect_x, rect_y, BLOCK_SIZE_PX, BLOCK_SIZE_PX, color)
                 painter.drawRect(rect_x, rect_y, BLOCK_SIZE_PX - 1, BLOCK_SIZE_PX - 1)
-                
-                
+
+
 class OptionsDialog(QDialog):
     def __init__(self, main_window_ref, parent=None):
         super().__init__(parent)
         self.main_window = main_window_ref
         self.setWindowTitle("Options")
         self.setModal(True)
-        
+
         layout = QVBoxLayout(self)
-        
+
         self.stats_button = QPushButton("Stats")
         self.keys_button = QPushButton("Keys Bindings")
         self.multiplayer_button = QPushButton("Multi Player")
@@ -400,7 +402,7 @@ class OptionsDialog(QDialog):
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
         self.dismiss_button = QPushButton("Dismiss")
-        
+
         layout.addWidget(self.stats_button)
         layout.addWidget(self.keys_button)
         layout.addWidget(self.multiplayer_button)
@@ -408,17 +410,17 @@ class OptionsDialog(QDialog):
         layout.addWidget(self.about_button)
         layout.addWidget(separator)
         layout.addWidget(self.dismiss_button)
-        
+
         self.stats_button.clicked.connect(self.show_stats)
         self.keys_button.clicked.connect(self.show_keys)
         self.multiplayer_button.clicked.connect(self.show_multiplayer)
         self.gametypes_button.clicked.connect(self.show_gametypes)
         self.about_button.clicked.connect(self.show_about)
         self.dismiss_button.clicked.connect(self.accept)
-        
+
         self.multiplayer_button.setEnabled(False)
         self.gametypes_button.setEnabled(False)
-        
+
     # Placeholder Slots
     # These will open other specific dialogs later
     @Slot()
@@ -429,7 +431,7 @@ class OptionsDialog(QDialog):
             stats_dlg.exec()
         else:
             print("Error: Could not access GameBoard from OptionsDialog.")
-        
+
     @Slot()
     def show_keys(self):
         if self.main_window:
@@ -445,12 +447,12 @@ class OptionsDialog(QDialog):
     @Slot()
     def show_gametypes(self):
         print("Game Types button clicked - not implemented yet")
-    
+
     @Slot()
     def show_about(self):
         print("About button clicked - not implemented yet")
-        
-        
+
+
 class PieceDisplayWidget(QWidget):
     def __init__(self, shape_index, parent=None):
         super().__init__(parent)
@@ -459,72 +461,79 @@ class PieceDisplayWidget(QWidget):
         width = NEXT_PIECE_AREA_WIDTH_BLOCKS * self.block_size
         height = NEXT_PIECE_AREA_HEIGHT_BLOCKS * self.block_size
         self.setFixedSize(int(width), int(height))
-        
+
     def paintEvent(self, event):
         if not (1 <= self.shape_index <= len(TETRIS_SHAPES)):
             return
-        
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         shape_coords_rel = TETRIS_SHAPES[self.shape_index - 1]
         color = TETRIS_COLORS[self.shape_index - 1]
-        
+
         min_x = min(p[0] for p in shape_coords_rel)
         max_x = max(p[0] for p in shape_coords_rel)
         min_y = min(p[1] for p in shape_coords_rel)
         max_y = max(p[1] for p in shape_coords_rel)
         piece_width_blocks = max_x - min_x + 1
         piece_height_blocks = max_y - min_y + 1
-        
+
         start_x_px = (self.width() - piece_width_blocks * self.block_size) / 2
         start_y_px = (self.height() - piece_height_blocks * self.block_size) / 2
         offset_x_px = -min_x * self.block_size
         offset_y_px = -min_y * self.block_size
-        
+
         painter.setPen(color.darker(120))
         painter.setBrush(QBrush(color))
-        
+
         for point_offset in shape_coords_rel:
             rect_x = start_x_px + offset_x_px + point_offset[0] * self.block_size
             rect_y = start_y_px + offset_y_px + point_offset[1] * self.block_size
-            painter.drawRect(int(rect_x), int(rect_y), int(self.block_size - 1), int(self.block_size - 1))
-            
-            
+            painter.drawRect(
+                int(rect_x),
+                int(rect_y),
+                int(self.block_size - 1),
+                int(self.block_size - 1),
+            )
+
 
 class StatsDialog(QDialog):
     def __init__(self, current_stats, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Stats")
         self.setModal(True)
-        
+
         self.stats = current_stats
-        
+
         main_layout = QVBoxLayout(self)
         title_label = QLabel("<h2>Piece Stats (Current Game)</h2>")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(title_label)
-        
+
         grid_layout = QGridLayout()
         grid_layout.setColumnStretch(0, 0)
         grid_layout.setColumnStretch(1, 1)
-        
+
         for i in range(1, len(TETRIS_SHAPES) + 1):
             piece_widget = PieceDisplayWidget(i)
             count = self.stats.get(i, 0)
             count_label = QLabel(f"{count}")
-            count_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            
+            count_label.setAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            )
+
             grid_layout.addWidget(piece_widget, i - 1, 0, Qt.AlignmentFlag.AlignCenter)
             grid_layout.addWidget(count_label, i - 1, 1)
-            
+
         main_layout.addLayout(grid_layout)
-        
+
         self.dismiss_button = QPushButton("Dismiss")
         self.dismiss_button.clicked.connect(self.accept)
-        main_layout.addWidget(self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter)
-        
-        
+        main_layout.addWidget(
+            self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter
+        )
+
 
 class KeysDialog(QDialog):
     def __init__(self, bindings, parent=None):
@@ -532,31 +541,35 @@ class KeysDialog(QDialog):
         self.setWindowTitle("Key Bindings")
         self.setModal(True)
         self.key_bindings = bindings
-        
+
         main_layout = QVBoxLayout(self)
         title_label = QLabel("<h2>Key Bindings</h2>")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_layout.addWidget(title_label)
-        
+
         grid_layout = QGridLayout()
         grid_layout.setColumnStretch(0, 1)
         grid_layout.setColumnStretch(1, 1)
-        
+
         row = 0
         for action, qt_key_code in self.key_bindings.items():
             action_label = QLabel(f"{action}:")
-            action_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            
+            action_label.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            )
+
             key_sequence = QKeySequence(qt_key_code)
             key_str = key_sequence.toString(QKeySequence.SequenceFormat.NativeText)
             # Optional: Handle cases where NativeText might still be empty for some obscure keys
             if not key_str:
-                 # Fallback to portable text or just the key code if needed
-                 key_str = key_sequence.toString(QKeySequence.SequenceFormat.PortableText)
-                 if not key_str:
-                     key_str = f"Code: {qt_key_code}" # Absolute fallback
+                # Fallback to portable text or just the key code if needed
+                key_str = key_sequence.toString(
+                    QKeySequence.SequenceFormat.PortableText
+                )
+                if not key_str:
+                    key_str = f"Code: {qt_key_code}"  # Absolute fallback
 
-            key_display = QLineEdit(key_str) # Display the key string
+            key_display = QLineEdit(key_str)  # Display the key string
             key_display.setReadOnly(True)
             key_display.setAlignment(Qt.AlignmentFlag.AlignCenter)
             # TODO: Add logic here later to capture new key presses for this entry
@@ -567,11 +580,11 @@ class KeysDialog(QDialog):
 
         main_layout.addLayout(grid_layout)
 
-
         self.dismiss_button = QPushButton("Dismiss")
         self.dismiss_button.clicked.connect(self.accept)
-        main_layout.addWidget(self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter)
-
+        main_layout.addWidget(
+            self.dismiss_button, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
 
 class MainWindow(QMainWindow):
@@ -580,7 +593,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"PySide6 Tetris (from Tcl)")
         self.game_state = "Init"
         self.current_interval = 500
-        
+
         self.key_bindings = {
             "Left": Qt.Key.Key_Left,
             "Right": Qt.Key.Key_Right,
@@ -590,7 +603,7 @@ class MainWindow(QMainWindow):
             "Slide": Qt.Key.Key_Return,
             "Start/Pause": Qt.Key.Key_S,
             "Reset": Qt.Key.Key_R,
-            "Options": Qt.Key.Key_O
+            "Options": Qt.Key.Key_O,
         }
         self.fall_timer = QTimer(self)
         self.fall_timer.timeout.connect(self.game_step)
@@ -655,11 +668,11 @@ class MainWindow(QMainWindow):
         self.game_board.next_piece_ready_signal.connect(
             self.next_piece_display.set_next_piece
         )
-        
+
         self.options_dialog = None
 
         self.reset_game()
-        
+
     def keyPressEvent(self, event):
         if self.game_state != "Playing" or self.game_board.is_paused:
             if event.key() == self.key_bindings.get("Options"):
@@ -667,10 +680,10 @@ class MainWindow(QMainWindow):
             else:
                 event.ignore()
             return
-        
+
         key = event.key()
         board = self.game_board
-        
+
         if key == self.key_bindings.get("Left"):
             board.move_piece(-1, 0)
         elif key == self.key_bindings.get("Right"):
@@ -692,7 +705,7 @@ class MainWindow(QMainWindow):
     def show_options_dialog(self):
         dialog = OptionsDialog(self, self)
         dialog.exec()
-        
+
     @Slot()
     def game_step(self):
         if self.game_state == "Playing" and not self.game_board.is_paused:
